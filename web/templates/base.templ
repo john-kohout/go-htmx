@@ -1,0 +1,21 @@
+package templates
+
+templ basePage() {
+    <html>
+        <head>
+            <title>Contact App</title>
+            <link rel="stylesheet" href="/static/site.css" />
+        </head>
+        <body>
+        <main>
+            <header>
+                <h1>
+                    <all-caps>contacts.app</all-caps>
+                    <sub-title>A Demo Contacts Application</sub-title>
+                </h1>
+            </header>
+            { children... }
+        </main>
+        </body>
+    </html>
+}

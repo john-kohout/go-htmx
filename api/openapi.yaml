@@ -1,0 +1,130 @@
+  openapi: 3.0.0
+  info:
+    title: hypermedia example API
+    version: 0.0.1
+
+  paths:
+    /:
+      get:
+        summary: base route that redirects to /contacts
+        operationId: index
+        responses:
+          '301':
+            description: redirect to /contacts
+
+    /contacts:
+      get:
+        summary: get contacts
+        operationId: getContacts
+        parameters:
+          - name: q
+            in: query
+            required: false
+            description: search query parameter
+            schema:
+              type: string
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+
+    /contacts/new:
+      get:
+        summary: new contact form
+        operationId: newContactForm
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+      post:
+        summary: create new contact
+        operationId: createContact
+        responses:
+          '201':
+            description: created
+            content:
+              text/html:
+                schema:
+                  type: string
+
+    /contacts/{contactId}:
+      get:
+        summary: get contact
+        operationId: getContact
+        parameters:
+          - name: contactId
+            in: path
+            description: contact identifier
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+
+    /contacts/{contactId}/edit:
+      get:
+        summary: get edit contact form
+        operationId: editContactForm
+        parameters:
+          - name: contactId
+            in: path
+            description: contact identifier
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+      post:
+        summary: edit contact
+        operationId: editContact
+        parameters:
+          - name: contactId
+            in: path
+            description: contact identifier
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+
+    /contacts/{contactId}/delete:
+      post:
+        summary: delete contact
+        operationId: deleteContact
+        parameters:
+          - name: contactId
+            in: path
+            description: contact identifier
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+
+
