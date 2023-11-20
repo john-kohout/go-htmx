@@ -2,6 +2,7 @@ package contacts
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -17,39 +18,51 @@ email`
 )
 
 type sqlContact struct {
-	ID    int    `db:"id"`
-	First string `db:"first_name"`
-	Last  string `db:"last_name"`
-	Phone string `db:"phone"`
-	Email string `db:"email"`
+	ID     int    `db:"id"`
+	First  string `db:"first_name"`
+	Last   string `db:"last_name"`
+	Phone  string `db:"phone"`
+	Email  string `db:"email"`
+	Errors string `db:"errors"`
 }
 
 func toSqlContact(c Contact) sqlContact {
+	errors := ""
+	errorsMap, err := json.Marshal(c.errors)
+	if err == nil {
+		errors = string(errorsMap)
+	}
+
 	if c.ID != 0 {
 		return sqlContact{
-			ID:    c.ID,
-			First: c.First,
-			Last:  c.Last,
-			Phone: c.Phone,
-			Email: c.Email,
+			ID:     c.ID,
+			First:  c.First,
+			Last:   c.Last,
+			Phone:  c.Phone,
+			Email:  c.Email,
+			Errors: errors,
 		}
 	}
 
 	return sqlContact{
-		First: c.First,
-		Last:  c.Last,
-		Phone: c.Phone,
-		Email: c.Email,
+		First:  c.First,
+		Last:   c.Last,
+		Phone:  c.Phone,
+		Email:  c.Email,
+		Errors: errors,
 	}
 }
 
 func (c *sqlContact) toContact() *Contact {
+	errors := make(map[string]string)
+	_ = json.Unmarshal([]byte(c.Errors), &errors)
 	return &Contact{
-		ID:    c.ID,
-		First: c.First,
-		Last:  c.Last,
-		Phone: c.Phone,
-		Email: c.Email,
+		ID:     c.ID,
+		First:  c.First,
+		Last:   c.Last,
+		Phone:  c.Phone,
+		Email:  c.Email,
+		errors: errors,
 	}
 }
 
@@ -58,20 +71,27 @@ var _ Repository = (*SqliteRepository)(nil)
 type SqliteRepository struct {
 }
 
-func (s SqliteRepository) GetContacts(ctx context.Context, tx *sqlx.Tx, search *string) ([]*Contact, error) {
+func (s SqliteRepository) GetContacts(ctx context.Context, tx *sqlx.Tx, search *string, page, size int) ([]*Contact, error) {
 	query := fmt.Sprintf("SELECT %s FROM contacts", selectFields)
 	contacts := make([]sqlContact, 0)
+	args := make([]interface{}, 0, 6)
 	var err error
 
 	if search != nil {
-		searchArg := fmt.Sprintf("%%%s%%", *search)
 		query = fmt.Sprintf("%s WHERE first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR email LIKE ?", query)
-		err = tx.SelectContext(ctx, &contacts, query, searchArg, searchArg, searchArg, searchArg)
-	} else {
-		err = tx.SelectContext(ctx, &contacts, query)
-
+		searchArg := fmt.Sprintf("%%%s%%", *search)
+		for i := 0; i < 4; i++ {
+			args = append(args, searchArg)
+		}
 	}
 
+	if size > 0 {
+		query = fmt.Sprintf("%s LIMIT ? OFFSET ?", query)
+		args = append(args, size)
+		args = append(args, (page-1)*size)
+	}
+
+	err = tx.SelectContext(ctx, &contacts, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +142,24 @@ func (s SqliteRepository) DeleteContact(ctx context.Context, tx *sqlx.Tx, contac
 		return err
 	}
 	return nil
+}
+
+func (s SqliteRepository) ValidateContactEmail(ctx context.Context, tx *sqlx.Tx, contact *Contact) (*Contact, error) {
+	query := fmt.Sprintf("SELECT %s FROM contacts WHERE email = ?", selectFields)
+	contacts := make([]sqlContact, 0)
+	var err error
+
+	err = tx.SelectContext(ctx, &contacts, query, contact.Email)
+	if err != nil {
+		return contact, err
+	}
+
+	if len(contacts) == 0 {
+		return contact, nil
+	}
+
+	contact.errors["email"] = fmt.Sprintf("%s is already in use", contact.Email)
+	return contact, nil
 }
 
 func toContacts(sqlContacts []sqlContact) []*Contact {

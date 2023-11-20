@@ -25,18 +25,21 @@ type ServerInterface interface {
 	// create new contact
 	// (POST /contacts/new)
 	CreateContact(ctx echo.Context) error
+	// delete contact
+	// (DELETE /contacts/{contactId})
+	DeleteContact(ctx echo.Context, contactId int) error
 	// get contact
 	// (GET /contacts/{contactId})
 	GetContact(ctx echo.Context, contactId int) error
-	// delete contact
-	// (POST /contacts/{contactId}/delete)
-	DeleteContact(ctx echo.Context, contactId int) error
 	// get edit contact form
 	// (GET /contacts/{contactId}/edit)
 	EditContactForm(ctx echo.Context, contactId int) error
 	// edit contact
 	// (POST /contacts/{contactId}/edit)
 	EditContact(ctx echo.Context, contactId int) error
+	// validate email
+	// (GET /contacts/{contactId}/email)
+	ValidateEmail(ctx echo.Context, contactId int, params ValidateEmailParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -66,6 +69,20 @@ func (w *ServerInterfaceWrapper) GetContacts(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter q: %s", err))
 	}
 
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", ctx.QueryParams(), &params.Page)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter page: %s", err))
+	}
+
+	// ------------- Optional query parameter "pagination" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pagination", ctx.QueryParams(), &params.Pagination)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter pagination: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetContacts(ctx, params)
 	return err
@@ -89,22 +106,6 @@ func (w *ServerInterfaceWrapper) CreateContact(ctx echo.Context) error {
 	return err
 }
 
-// GetContact converts echo context to params.
-func (w *ServerInterfaceWrapper) GetContact(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "contactId" -------------
-	var contactId int
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "contactId", runtime.ParamLocationPath, ctx.Param("contactId"), &contactId)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter contactId: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetContact(ctx, contactId)
-	return err
-}
-
 // DeleteContact converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteContact(ctx echo.Context) error {
 	var err error
@@ -118,6 +119,22 @@ func (w *ServerInterfaceWrapper) DeleteContact(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DeleteContact(ctx, contactId)
+	return err
+}
+
+// GetContact converts echo context to params.
+func (w *ServerInterfaceWrapper) GetContact(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "contactId" -------------
+	var contactId int
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "contactId", runtime.ParamLocationPath, ctx.Param("contactId"), &contactId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter contactId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetContact(ctx, contactId)
 	return err
 }
 
@@ -153,6 +170,31 @@ func (w *ServerInterfaceWrapper) EditContact(ctx echo.Context) error {
 	return err
 }
 
+// ValidateEmail converts echo context to params.
+func (w *ServerInterfaceWrapper) ValidateEmail(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "contactId" -------------
+	var contactId int
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "contactId", runtime.ParamLocationPath, ctx.Param("contactId"), &contactId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter contactId: %s", err))
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ValidateEmailParams
+	// ------------- Required query parameter "email" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "email", ctx.QueryParams(), &params.Email)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter email: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ValidateEmail(ctx, contactId, params)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -185,9 +227,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/contacts", wrapper.GetContacts)
 	router.GET(baseURL+"/contacts/new", wrapper.NewContactForm)
 	router.POST(baseURL+"/contacts/new", wrapper.CreateContact)
+	router.DELETE(baseURL+"/contacts/:contactId", wrapper.DeleteContact)
 	router.GET(baseURL+"/contacts/:contactId", wrapper.GetContact)
-	router.POST(baseURL+"/contacts/:contactId/delete", wrapper.DeleteContact)
 	router.GET(baseURL+"/contacts/:contactId/edit", wrapper.EditContactForm)
 	router.POST(baseURL+"/contacts/:contactId/edit", wrapper.EditContact)
+	router.GET(baseURL+"/contacts/:contactId/email", wrapper.ValidateEmail)
 
 }

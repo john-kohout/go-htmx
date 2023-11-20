@@ -7,4 +7,16 @@ package contacts
 type GetContactsParams struct {
 	// Q search query parameter
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Page page number
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// Pagination pagination style
+	Pagination *string `form:"pagination,omitempty" json:"pagination,omitempty"`
+}
+
+// ValidateEmailParams defines parameters for ValidateEmail.
+type ValidateEmailParams struct {
+	// Email email to validate
+	Email string `form:"email" json:"email"`
 }

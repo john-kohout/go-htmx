@@ -23,6 +23,18 @@
             description: search query parameter
             schema:
               type: string
+          - name: page
+            in: query
+            required: false
+            description: page number
+            schema:
+              type: integer
+          - name: pagination
+            in: query
+            required: false
+            description: pagination style
+            schema:
+              type: string
         responses:
           '200':
             description: ok
@@ -71,6 +83,44 @@
               text/html:
                 schema:
                   type: string
+      delete:
+        summary: delete contact
+        operationId: deleteContact
+        parameters:
+          - name: contactId
+            in: path
+            description: contact identifier
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: ok
+            content:
+              text/html:
+                schema:
+                  type: string
+
+    /contacts/{contactId}/email:
+      get:
+        summary: validate email
+        operationId: validateEmail
+        parameters:
+          - name: contactId
+            in: path
+            description: contact identifier
+            required: true
+            schema:
+              type: integer
+          - name: email
+            in: query
+            description: email to validate
+            required: true
+            schema:
+              type: string
+        responses:
+          '204':
+            description: no content
 
     /contacts/{contactId}/edit:
       get:
@@ -93,25 +143,6 @@
       post:
         summary: edit contact
         operationId: editContact
-        parameters:
-          - name: contactId
-            in: path
-            description: contact identifier
-            required: true
-            schema:
-              type: integer
-        responses:
-          '200':
-            description: ok
-            content:
-              text/html:
-                schema:
-                  type: string
-
-    /contacts/{contactId}/delete:
-      post:
-        summary: delete contact
-        operationId: deleteContact
         parameters:
           - name: contactId
             in: path

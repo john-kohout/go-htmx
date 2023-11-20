@@ -1,8 +1,5 @@
 package main
 
-//go:generate go get -u github.com/valyala/quicktemplate/qtc
-//go:generate qtc -dir=../web/templates
-
 import (
 	"fmt"
 	"time"
@@ -14,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
 
-	"github.com/john-kohout/go-htmx/db"
+	"github.com/john-kohout/go-htmx/data"
 	"github.com/john-kohout/go-htmx/internal/contacts"
 	pkg "github.com/john-kohout/go-htmx/pkg/contacts"
 	"github.com/john-kohout/go-htmx/pkg/render"
@@ -22,10 +19,11 @@ import (
 
 type Config struct {
 	BasePath   string `envconfig:"BASEPATH" default:""`
-	Database   string `envconfig:"DATABASE" default:"../../db/database.db"`
-	Migrations string `envconfig:"MIGRATIONS" default:"../../db/migrations"`
+	Database   string `envconfig:"DATABASE" default:"data/database.db"`
+	Migrations string `envconfig:"MIGRATIONS" default:"data/migrations"`
 	Port       int    `envconfig:"PORT" default:"8000"`
 	Timeout    int    `envconfig:"TIMEOUT" default:"5"`
+	Static     string `envconfig:"STATIC" default:"web/static"`
 }
 
 func main() {
@@ -35,7 +33,7 @@ func main() {
 		log.Fatal().Err(err).Send()
 	}
 
-	database, err := db.GetSqliteDatabase(cfg.Database, cfg.Migrations)
+	database, err := data.GetSqliteDatabase(cfg.Database, cfg.Migrations)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -56,7 +54,7 @@ func main() {
 		middleware.Recover(),
 	)
 	e.Renderer = &render.Template{}
-	e.Static("/static", "../../web/static")
+	e.Static("/static", "web/static")
 
 	contacts.RegisterHandlersWithBaseURL(e, s, cfg.BasePath)
 	err = e.Start(fmt.Sprintf(":%d", cfg.Port))

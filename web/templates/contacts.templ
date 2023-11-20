@@ -6,6 +6,91 @@ import (
     "github.com/john-kohout/go-htmx/pkg/contacts"
 )
 
+const (
+    PaginationNone           PaginationValue = "NONE"
+	PaginationNextPage       PaginationValue = "NEXT_PAGE"
+	PaginationClickToLoad    PaginationValue = "CLICK_TO_LOAD"
+	PaginationInfiniteScroll PaginationValue = "INFINITE_SCROLL"
+)
+
+type PaginationValue string
+
+type Pagination struct {
+	Name string
+	Value PaginationValue
+}
+
+var pageOptions = []Pagination{
+    {
+        Name: "None",
+        Value: PaginationNone,
+    },
+	{
+		Name:  "Next Page",
+		Value: PaginationNextPage,
+	},
+	{
+		Name:  "Click To Load",
+		Value: PaginationClickToLoad,
+	},
+	{
+		Name:  "Infinite Scroll",
+		Value: PaginationInfiniteScroll,
+	},
+}
+
+templ GetContacts(contacts []*contacts.Contact, q string, pagination PaginationValue, page int) {
+     <table>
+         <thead>
+         <tr>
+             <th>First</th> <th>Last</th> <th>Phone</th> <th>Email</th> <th></th>
+         </tr>
+         </thead>
+         <tbody>
+         for _, contact := range contacts {
+             <tr>
+                 <td>{ contact.First }</td>
+                 <td>{ contact.Last }</td>
+                 <td>{ contact.Phone }</td>
+                 <td>{ contact.Email }</td>
+                 <td>
+                     <a href={ templ.SafeURL(fmt.Sprintf("/contacts/%d/edit", contact.ID)) }>Edit</a>
+                     <a href={ templ.SafeURL(fmt.Sprintf("/contacts/%d", contact.ID)) }>View</a>
+                 </td>
+             </tr>
+        }
+        if len(contacts) == 10 {
+            switch pagination {
+            case PaginationClickToLoad:
+                 <tr>
+                     <td colspan="5" style="text-align: center">
+                         <button hx-target="closest tr"
+                                 hx-swap="outerHTML"
+                                 hx-select="tbody > tr"
+                                 hx-get={ PaginatedContactsUrl(q, pagination, page+1) }>
+                           Load More
+                         </button>
+                     </td>
+                 </tr>
+            case PaginationInfiniteScroll:
+                <tr>
+                     <td colspan="5" style="text-align: center">
+                         <span hx-target="closest tr"
+                               hx-trigger="revealed"
+                               hx-swap="outerHTML"
+                               hx-select="tbody > tr"
+                               hx-get={ PaginatedContactsUrl(q, pagination, page+1) }>Loading More...</span>
+                     </td>
+                </tr>
+            case PaginationNextPage:
+            case PaginationNone:
+            default:
+            }
+        }
+         </tbody>
+     </table>
+}
+
 templ ShowContact(contact contacts.Contact) {
     @basePage() {
         <h1>{ contact.First } { contact.Last }</h1>
@@ -33,35 +118,47 @@ templ ContactNotFound() {
     }
 }
 
+templ ContactError(err string) {
+    <span class="error">{ err }</span>
+}
+
+templ ContactForm(contact contacts.Contact) {
+    <form action="/contacts/new" method="post">
+        <fieldset>
+            <legend>Contact Values</legend>
+            <p>
+                <label for="email">Email</label>
+                <input name="email" id="email" type="email"
+                       placeholder="Email"
+                       hx-get={ fmt.Sprintf("/contacts/%d/email", contact.ID) }
+                       hx-target="next .error"
+                       hx-trigger="change, keyup delay:200ms changed"
+                       value={ contact.Email }/>
+                <span class="error">{ contact.Error("email") }</span>
+            </p>
+            <p>
+                <label for="first_name">First Name</label>
+                <input name="first_name" id="first_name" type="text" placeholder="First Name" value={ contact.First }/>
+                <span class="error">{ contact.Error("first") }</span>
+            </p>
+            <p>
+                <label for="last_name">Last Name</label>
+                <input name="last_name" id="last_name" type="text" placeholder="Last Name" value={ contact.Last}/>
+                <span class="error">{ contact.Error("last") }</span>
+            </p>
+            <p>
+                <label for="phone">Phone</label>
+                <input name="phone" id="phone" type="text" placeholder="Phone" value={ contact.Phone }/>
+                <span class="error">{ contact.Error("phone") }</span>
+            </p>
+            <button>Save</button>
+        </fieldset>
+    </form>
+}
+
 templ NewContact(contact contacts.Contact) {
     @basePage() {
-        <form action="/contacts/new" method="post">
-            <fieldset>
-                <legend>Contact Values</legend>
-                <p>
-                    <label for="email">Email</label>
-                    <input name="email" id="email" type="email" placeholder="Email" value={ contact.Email }/>
-                    <span class="error">{ contact.Error("email") }</span>
-                </p>
-                <p>
-                    <label for="first_name">First Name</label>
-                    <input name="first_name" id="first_name" type="text" placeholder="First Name" value={ contact.First }/>
-                    <span class="error">{ contact.Error("first") }</span>
-                </p>
-                <p>
-                    <label for="last_name">Last Name</label>
-                    <input name="last_name" id="last_name" type="text" placeholder="Last Name" value={ contact.Last}/>
-                    <span class="error">{ contact.Error("last") }</span>
-                </p>
-                <p>
-                    <label for="phone">Phone</label>
-                    <input name="phone" id="phone" type="text" placeholder="Phone" value={ contact.Phone }/>
-                    <span class="error">{ contact.Error("phone") }</span>
-                </p>
-                <button>Save</button>
-            </fieldset>
-        </form>
-
+        @ContactForm(contact)
         <p>
             <a href="/contacts">Back</a>
         </p>
@@ -70,74 +167,79 @@ templ NewContact(contact contacts.Contact) {
 
 templ EditContact(contact contacts.Contact) {
     @basePage() {
-        <form action={ templ.SafeURL(fmt.Sprintf("/contacts/%d/edit", contact.ID)) } method="post">
-            <fieldset>
-                <legend>Contact Values</legend>
-                  <p>
-                      <label for="email">Email</label>
-                      <input name="email" id="email" type="text" placeholder="Email" value={ contact.Email }/>
-                      <span class="error">{ contact.Error("email") }</span>
-                  </p>
-                  <p>
-                      <label for="first_name">First Name</label>
-                      <input name="first_name" id="first_name" type="text" placeholder="First Name"
-                             value={ contact.First }/>
-                      <span class="error">{ contact.Error("first") }</span>
-                  </p>
-                  <p>
-                      <label for="last_name">Last Name</label>
-                      <input name="last_name" id="last_name" type="text" placeholder="Last Name"
-                             value={ contact.Last }/>
-                      <span class="error">{ contact.Error("last") }</span>
-                  </p>
-                  <p>
-                      <label for="phone">Phone</label>
-                      <input name="phone" id="phone" type="text" placeholder="Phone" value={ contact.Phone }/>
-                      <span class="error">{ contact.Error("phone") }</span>
-                  </p>
-                <button>Save</button>
-            </fieldset>
-        </form>
-        <form action={ templ.SafeURL(fmt.Sprintf("/contacts/%d/delete", contact.ID)) } method="post">
-            <button>Delete Contact</button>
-        </form>
-
+        @ContactForm(contact)
+        <button hx-delete={ fmt.Sprintf("/contacts/%d", contact.ID) }
+                hx-push-url="true"
+                hx-confirm="Are you sure you want to delete this contact?"
+                hx-target="body">
+            Delete Contact
+        </button>
         <p>
             <a href="/contacts">Back</a>
         </p>
     }
 }
 
-templ Contacts(q string, contacts []*contacts.Contact) {
+func PaginatedContactsUrl(q string, pagination PaginationValue, page int) string {
+    query := ""
+    if q != "" {
+        query = fmt.Sprintf("&q=%s",q)
+    }
+    pag := ""
+    if pagination != PaginationNone {
+        pag = fmt.Sprintf("&pagination=%s",pagination)
+    }
+
+    return fmt.Sprintf("/contacts?page=%d%s%s", page, pag, query)
+}
+
+templ ContactsSearchForm(q string, pagination PaginationValue) {
+    <form action="/contacts" method="get" class="tool-bar"
+             hx-get="/contacts"
+             hx-target="#contacts"
+             hx-select="#contacts"
+             hx-trigger="search, keyup delay:200ms changed from:#search, change from:#pagination"
+             hx-push-url="true">
+            <label for="search">Search Term</label>
+            <input id="search"
+                   type="search"
+                   name="q"
+                   value={ q }
+                   />
+            <input type="submit" value="Search"/>
+            <label for="pagination">Pagination</label>
+            <select
+                    id="pagination"
+                    name="pagination"
+                    value={ string(pagination) }
+                    >
+                for _, option := range pageOptions {
+                    <option value={ string(option.Value) } selected?={ pagination == option.Value }>{ option.Name }</option>
+                }
+            </select>
+    </form>
+}
+
+templ Contacts(contacts []*contacts.Contact, q string, pagination PaginationValue, page int) {
     @basePage() {
-        <form action="/contacts" method="get" class="tool-bar">
-                <label for="search">Search Term</label>
-                <input id="search" type="search" name="q" value={ q }/>
-                <input type="submit" value="Search"/>
-         </form>
-         <table>
-             <thead>
-             <tr>
-                 <th>First</th> <th>Last</th> <th>Phone</th> <th>Email</th> <th></th>
-             </tr>
-             </thead>
-             <tbody>
-             for _, contact := range contacts {
-                 <tr>
-                     <td>{ contact.First }</td>
-                     <td>{ contact.Last }</td>
-                     <td>{ contact.Phone }</td>
-                     <td>{ contact.Email }</td>
-                     <td>
-                         <a href={ templ.SafeURL(fmt.Sprintf("/contacts/%d/edit", contact.ID)) }>Edit</a>
-                         <a href={ templ.SafeURL(fmt.Sprintf("/contacts/%d", contact.ID)) }>View</a>
-                     </td>
-                 </tr>
+        <div id="contacts">
+            @ContactsSearchForm(q, pagination)
+            @GetContacts(contacts, q, pagination, page)
+            if pagination == PaginationNextPage {
+                <div>
+                    <span style="float: right">
+                        if page > 1 {
+                          <a href={ templ.SafeURL(PaginatedContactsUrl(q, pagination, page-1)) }>Previous</a>
+                        }
+                        if len(contacts) == 10 {
+                            <a href={ templ.SafeURL(PaginatedContactsUrl(q, pagination, page+1)) }>Next</a>
+                        }
+                    </span>
+                </div>
             }
-             </tbody>
-         </table>
-         <p>
-             <a href="/contacts/new">Add Contact</a>
-         </p>
+            <p>
+                <a href="/contacts/new">Add Contact</a>
+            </p>
+        </div>
      }
 }

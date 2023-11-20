@@ -1,4 +1,4 @@
-package db
+package data
 
 import (
 	"database/sql"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/rs/zerolog/log"
 )
 
 func migrate(db *sql.DB, migrations string) error {
@@ -31,7 +32,7 @@ func migrate(db *sql.DB, migrations string) error {
 		if filepath.Ext(file.Name()) == ".sql" {
 			err = executeSQLFile(db, filepath.Join(migrations, file.Name()))
 			if err != nil {
-				return err
+				log.Err(err).Send()
 			}
 		}
 	}
@@ -45,11 +46,16 @@ func executeSQLFile(db *sql.DB, filePath string) error {
 		return err
 	}
 
-	_, err = db.Exec(string(contents))
+	result, err := db.Exec(string(contents))
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
+	log.Info().Msgf("executed %s, %d rows affected", filePath, rows)
 	return nil
 }
 
