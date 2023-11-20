@@ -22,8 +22,8 @@ import (
 
 type Config struct {
 	BasePath   string `envconfig:"BASEPATH" default:""`
-	Database   string `envconfig:"DATABASE" default:"../../db/database.db"`
-	Migrations string `envconfig:"MIGRATIONS" default:"../../db/migrations"`
+	Database   string `envconfig:"DATABASE" default:"db/database.db"`
+	Migrations string `envconfig:"MIGRATIONS" default:"db/migrations"`
 	Port       int    `envconfig:"PORT" default:"8000"`
 	Timeout    int    `envconfig:"TIMEOUT" default:"5"`
 }
